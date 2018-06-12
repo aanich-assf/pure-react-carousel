@@ -16,6 +16,7 @@ const Slider = class Slider extends React.Component {
     currentSlide: PropTypes.number.isRequired,
     disableAnimation: PropTypes.bool.isRequired,
     dragEnabled: PropTypes.bool.isRequired,
+    dragCallback: PropTypes.func,
     hasMasterSpinner: PropTypes.bool.isRequired,
     interval: PropTypes.number.isRequired,
     isPageScrollLocked: PropTypes.bool.isRequired,
@@ -44,6 +45,7 @@ const Slider = class Slider extends React.Component {
     classNameTray: null,
     classNameTrayWrap: null,
     disableAnimation: false,
+    dragCallback: () => {},
     height: null,
     onMasterSpinner: null,
     style: {},
@@ -134,21 +136,51 @@ const Slider = class Slider extends React.Component {
       });
     }
 
-    this.setState({
+    const deltaState = {
       isBeingTouchDragged: touchDrag,
       isBeingMouseDragged: mouseDrag,
       startX: screenX,
-      startY: screenY,
+      startY: screenY
+    };
+
+    this.props.dragCallback({
+      ...this.state,
+      ...deltaState
     });
+
+    this.setState(deltaState);
   }
 
   onDragMove(screenX, screenY) {
+    let deltaState = {};
     this.moveTimer = window.requestAnimationFrame.call(window, () => {
-      this.setState({
+      deltaState = {
         deltaX: screenX - this.state.startX,
         deltaY: screenY - this.state.startY,
         mouseIsMoving: this.state.isBeingMouseDragged,
+      };
+
+      const slideSizeInPx = Slider.slideSizeInPx(
+        this.props.orientation,
+        this.sliderTrayElement.clientWidth,
+        this.sliderTrayElement.clientHeight,
+        this.props.totalSlides,
+      );
+
+      if ((this.props.currentSlide >= this.props.totalSlides - 1) && deltaState.deltaX <= -(slideSizeInPx / 2)) {
+        return;
+      }
+
+      if (this.props.currentSlide === 0 && deltaState.deltaX >= (slideSizeInPx / 2)) {
+        return;
+      }
+
+      this.props.dragCallback({
+        ...this.state,
+        ...deltaState
       });
+
+      this.setState(deltaState);
     });
   }
 
@@ -163,13 +195,20 @@ const Slider = class Slider extends React.Component {
       });
     }
 
-    this.setState({
+    const deltaState = {
       deltaX: 0,
       deltaY: 0,
       isBeingTouchDragged: false,
       isBeingMouseDragged: false,
-      mouseIsMoving: false,
+      mouseIsMoving: false
+    };
+
+    this.props.dragCallback({
+      ...this.state,
+      ...deltaState
     });
+
+    this.setState(deltaState);
 
     this.isDocumentScrolling = this.props.lockOnWindowScroll ? false : null;
   }
@@ -407,6 +446,7 @@ const Slider = class Slider extends React.Component {
       currentSlide,
       disableAnimation,
       dragEnabled,
+      dragCallback,
       hasMasterSpinner,
       interval,
       isPageScrollLocked,
